@@ -75,27 +75,24 @@ def Detection(inputfile, library):
 
         MSER_temp = cv2.MSER_create()
         Reg, Box = MSER_temp.detectRegions(grayscale)
-        cv2.imwrite("aftermser.jpg", Reg)
 
         for k, (reg, box) in enumerate(zip(Reg, Box)):
 
             reg = RegionCalculation(reg, box)
 
-            if  w * h * Area_Limit > reg.Area:
-                continue
+            AreaTF = w * h * Area_Limit > reg.Area
 
-            if (2 * (w + h) * Perimeter_Limit) > reg.Return_Perim(cannyscale):
-                continue
+            PerimTF = (2 * (w + h) * Perimeter_Limit) > reg.Return_Perim(cannyscale)
 
-            if  Ratio_Limit < reg.Return_Ratio():
-                continue
+            RatioTF = Ratio_Limit < reg.Return_Ratio()
 
-            if (reg.Return_Occup() < Occupation_Range[0]) or (reg.Return_Occup() > Occupation_Range[1]):
-                continue
+            OccupTF = (reg.Return_Occup() < Occupation_Range[0]) or (reg.Return_Occup() > Occupation_Range[1])
 
-            if (reg.Return_Comp() < Compact_Range[0]) or (reg.Return_Comp() > Compact_Range[1]):
-                continue
+            CompTF = (reg.Return_Comp() < Compact_Range[0]) or (reg.Return_Comp() > Compact_Range[1])
 
+            if  AreaTF or PerimTF or RatioTF or OccupTF or CompTF:
+                continue
+            
             a, b, c, d = box
 
 
