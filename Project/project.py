@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
+###########################################################################################
+
 class Library:
 
     Area_Limit = 2.0e-4
@@ -11,6 +13,9 @@ class Library:
     Ratio_Limit = 5.0
     Occupation_Range = (0.23, 0.90)
     Compact_Range = (3e-3, 1e-1)
+    Count_Limit = 10
+
+###########################################################################################
 
 class RegionCalculation(object):
 
@@ -24,7 +29,7 @@ class RegionCalculation(object):
         return len(list(self.reg))
 
     def Return_Perim(self, canny_img):
-        self.Perimeter = len(np.where(canny_img[self.y:self.y + self.h, self.x:self.x + self.w] != 0)[0])
+        self.Perimeter = len(np.where(canny_img[y:y + h, x:x + w] != 0)[0])
         return self.Perimeter
 
     def Return_Occup(self):
@@ -39,19 +44,43 @@ class RegionCalculation(object):
         else:
             return self.Area / (self.Perimeter ** 2 + 1e-10)
 
+###########################################################################################
 
-def To_Canny(img):
-    sigma = 0.36
-    Bot_ratio = 1.0 - sigma
-    Top_ratio = 1.0 + sigma
-    Bottom = int(max(0, Bot_ratio * np.median(img)))
-    Top = int(min(255, Top_ratio * np.median(img)))
-    return cv2.Canny(img, Bottom, Top)
+def Return_Strokes(components, cannyscale, gX, gY):
 
+    a, b, c, d = components
+
+    content = np.array([[np.zeros, np.zeros]])
+
+    #-----------------------------------------------------------------------------------------------------------#
+
+    for i in range(b, b + d):
+        for j in range(a, a + c):
+
+            if cannyscale[i, j] != 0:
+
+                gX_temp = gX[i, j]
+                gY_temp = gY[i, j]
+
+                X = i
+                Y = j
+                Xo = X
+                Yo = Y
+                count = 0
+                g = True
+                go  = g
+
+                SW = np.zeros
+                SWO = SW
+
+                while (g or go) and (count < Count_Limit):
+                    count += 1
+
+###########################################################################################
 
 def Detection(inputfile, library):
 
-        img = cv2.imread(inputfile)
+        imgfile = cv2.imread(inputfile)
         color_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = color_img
         h, w = img.shape[:2]
@@ -63,18 +92,35 @@ def Detection(inputfile, library):
         Ratio_Limit = library.Ratio_Limit
         Occupation_Range = library.Occupation_Range
         Compact_Range = library.Compact_Range
+        Count_Limit = config.Count_Limit
+
+        Sobel_X = cv2.Sobel(grayscale, cv2.CV_64F, 1, 0, ksize=-1)
+        Sobel_Y = cv2.Sobel(grayscale, cv2.CV_64F, 0, 1, ksize=-1)
+
+        Finalimg = rgb_img.copy()
+        height, width = img.shape[:2]
 
         grayscale = cv2.cvtColor(img.copy(), cv2.COLOR_RGB2GRAY)
-        cannyscale = To_Canny(img)
+
+        #-----------------------------------------------------------------------------------------------------------#
+        sigma = 0.36
+        Bot_ratio = 1.0 - sigma
+        Top_ratio = 1.0 + sigma
+        Bottom = int(max(0, Bot_ratio * np.median(img)))
+        Top = int(min(255, Top_ratio * np.median(img)))
+        cannyscale = cv2.Canny(img, Bottom, Top)
         #cv2.imwrite("aftercanny.jpg", cannyscale)
 
-        sobelX = cv2.Sobel(grayscale, cv2.CV_64F, 1, 0, ksize=-1)
-        sobelY = cv2.Sobel(grayscale, cv2.CV_64F, 0, 1, ksize=-1)
+        #-----------------------------------------------------------------------------------------------------------#
 
-        ###########################################################################################
+        Mag = np.sqrt(Sobel_Y.astype(int) * Sobel_Y.astype(int) + Sobel_X.astype(int) * Sobel_X.astype(int))
 
-        MSER_temp = cv2.MSER_create()
-        Reg, Box = MSER_temp.detectRegions(grayscale)
+        gX = Sobel_Y.astype(int) / (Mag + 1e-10)
+        gY = Sobel_X.astype(int) / (Mag + 1e-10)
+
+        #-----------------------------------------------------------------------------------------------------------#
+
+        Reg, Box = cv2.MSER_create().detectRegions(grayscale)
 
         for k, (reg, box) in enumerate(zip(Reg, Box)):
 
@@ -95,8 +141,10 @@ def Detection(inputfile, library):
             
             a, b, c, d = box
 
+            SW, SWO = Return_Strokes((a, b, c, d), cannyscale, gX, gY)
 
-        ###########################################################################################
+
+        #-----------------------------------------------------------------------------------------------------------#
 
 
 
