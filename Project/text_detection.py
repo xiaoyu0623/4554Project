@@ -72,19 +72,19 @@ class TextDetection(object):
 
         Area_Limit                          = 2.0e-4
         Perimeter_Limit                     = 1e-4
-        Ratio_Limit                         = 5.0
-        Occupation_Range                    = (0.23, 0.90)
+        Ratio_Limit                         = 5
+        Occupation_Range                    = (0.23, 0.9)
         Compact_Range                       = (3e-3, 1e-1)
         Swt_Count_Limit                     = 10
-        Swt_Std_Limit                       = 20.0
-        Stroke_Size_Limit                   = 0.02        
+        Swt_Std_Limit                       = 20
+        Stroke_Size_Limit                   = 0.02       
         Stroke_Variance_Limit               = 0.15     
         Step_Count                          = 10
         K                                   = 3
         Repeat_Time                         = 7
         Gain                                = 10
 
-        self.inputfile                     = inputfile
+        self.inputfile                      = inputfile
         img                                 = cv2.imread(inputfile)
         color_img                           = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.img                            = color_img
@@ -309,7 +309,7 @@ class TextDetection(object):
 
             sws, swso               = self.Return_Stroke((a, b, c, d))
 
-            sw, swc, _, swsstd, _, _   = self.Return_Stroke_Prop(sws)
+            sw, swc, _, swsstd, _, _= self.Return_Stroke_Prop(sws)
 
             swo, swco, _, so, _, _  = self.Return_Stroke_Prop(swso)
 
@@ -317,7 +317,7 @@ class TextDetection(object):
                 sws                 = swso
                 sw                  = swo
                 swc                 = swco
-                swsstd                 = so
+                swsstd              = so
 
             TF1                     = len(sws) < self.Swt_Count_Limit
             TF2                     = swsstd > self.Swt_Std_Limit
@@ -332,6 +332,8 @@ class TextDetection(object):
             if  VC > self.Stroke_Variance_Limit:
                 finalregs   =  finalregs + 1
                 restemp     = reg.RGB(restemp)
+
+        print("{} Final Total Regions.".format(finalregs))
 
         DoBinary                    = np.zeros_like(self.grayscale)
         r, c, _                     = np.where(restemp != [0, 0, 0])
@@ -359,31 +361,11 @@ class TextDetection(object):
 
         return finalresult
 
-    
-    def OCR_Op(self):
-
-        Rec1    = self.img.copy()
-        Rec2    = np.zeros_like(self.grayscale)
-
-        boxes   = image_to_boxes(Image.open(self.inputfile))
-        boxes   = [map(int, i) for i in [temp.split(" ")[1:-1] for temp in boxes.split("\n")]]
-
-        for box in boxes:
-            b1      = self.d - box[1]
-            b3      = self.d - box[3]
-            temp    = (int(box[0]), int(b1), int(box[2]), int(b3))
-            cv2.rectangle(Rec1, (temp[0], temp[1]), (temp[2], temp[3]), (0, 255, 0), 2)
-            cv2.rectangle(Rec2, (temp[0], temp[1]), (temp[2], temp[3]), 255, -1)
-
-        return Rec1, Rec2
-
-
-
 def plt_show(*inputimages):
 
-    imagelength = len(inputimages)
-    ilength = imagelength / 3.
-    R = np.ceil(ilength)
+    imagelength     = len(inputimages)
+    ilength         = imagelength / 3.
+    R               = np.ceil(ilength)
 
     for i in range(imagelength):
         plt.subplot(R, 3, i + 1)
@@ -402,15 +384,34 @@ def plt_show(*inputimages):
     plt.show()
 
 
-IMAGE_FILE      = "input_scenetext01.jpg"
+inputfile       = "T4.jpg"
 
-Structure       = TextDetection(IMAGE_FILE)
+Structure       = TextDetection(inputfile)
 
 finalresult     = Structure.detect()
 
-plt_show((Structure.img, "Original"), (Structure.Finalimg, "Final"), (finalresult, "Mask"))
+plt_show((Structure.img, "Original"), (Structure.Finalimg, "Final Image"), (finalresult, "Mask For Transformation"))
 
-OCR1, OCR2 = Structure.OCR_Op()
+#---------------------------------------------------------------------------------------------------------------
 
-plt_show((Structure.img, "Original"), (OCR1, "Final after OCR"), (OCR2, "Mask after OCR"))
+MSER_Temp       = cv2.MSER_create()
+inputimg        = cv2.imread(inputfile)
 
+grayimg         = cv2.cvtColor(inputimg, cv2.COLOR_BGR2GRAY)
+OCR             = inputimg.copy()
+
+regs, _         = MSER_Temp.detectRegions(grayimg)
+HullContents    = [cv2.convexHull(rs.reshape(-1, 1, 2)) for rs in regs]
+
+cv2.polylines(OCR, HullContents, 1, (0, 255, 0))
+cv2.imshow('OCR image', OCR)
+cv2.waitKey(0)
+
+cover           = np.zeros((inputimg.shape[0], inputimg.shape[1], 1), dtype= np.uint8)
+
+for HCs in HullContents:
+    cv2.drawContours(cover, [HCs], -1, (255, 255, 255), -1)
+
+FixedFinal      = cv2.bitwise_and(inputimg, inputimg, mask= cover)
+cv2.imshow("Fixed Image", FixedFinal)
+cv2.waitKey(0)
