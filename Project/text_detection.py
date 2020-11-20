@@ -4,7 +4,6 @@ import numpy as np
 from scipy.stats import mode, norm
 from PIL import Image
 import matplotlib.pyplot as plt
-pytesseract.pytesseract.tesseract_cmd = 'C:\Program Files\Tesseract-OCR\ tesseract.exe'
 from pytesseract import image_to_string, image_to_boxes
 
 class Reg_Calculation(object):
