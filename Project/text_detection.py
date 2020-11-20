@@ -4,7 +4,8 @@ import numpy as np
 from scipy.stats import mode, norm
 from PIL import Image
 import matplotlib.pyplot as plt
-
+pytesseract.pytesseract.tesseract_cmd = 'C:\Program Files\Tesseract-OCR\ tesseract.exe'
+from pytesseract import image_to_string, image_to_boxes
 
 class Reg_Calculation(object):
 
@@ -68,7 +69,7 @@ class Reg_Calculation(object):
 
 class TextDetection(object):
 
-    def __init__(self, image_file):
+    def __init__(self, inputfile):
 
         Area_Limit                          = 2.0e-4
         Perimeter_Limit                     = 1e-4
@@ -84,8 +85,8 @@ class TextDetection(object):
         Repeat_Time                         = 7
         Gain                                = 10
 
-        self.image_file                     = image_file
-        img                                 = cv2.imread(image_file)
+        self.inputfile                     = inputfile
+        img                                 = cv2.imread(inputfile)
         color_img                           = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.img                            = color_img
         self.d, self.c                      = img.shape[:2]
@@ -359,6 +360,24 @@ class TextDetection(object):
 
         return finalresult
 
+    
+    def OCR_Op(self):
+
+        Rec1    = self.img.copy()
+        Rec2    = np.zeros_like(self.grayscale)
+
+        boxes   = image_to_boxes(Image.open(self.inputfile))
+        boxes   = [map(int, i) for i in [temp.split(" ")[1:-1] for temp in boxes.split("\n")]]
+
+        for box in boxes:
+            b1      = self.d - box[1]
+            b3      = self.d - box[3]
+            temp    = (int(box[0]), int(b1), int(box[2]), int(b3))
+            cv2.rectangle(Rec1, (temp[0], temp[1]), (temp[2], temp[3]), (0, 255, 0), 2)
+            cv2.rectangle(Rec2, (temp[0], temp[1]), (temp[2], temp[3]), 255, -1)
+
+        return Rec1, Rec2
+
 
 
 def plt_show(*inputimages):
@@ -391,4 +410,8 @@ Structure       = TextDetection(IMAGE_FILE)
 finalresult     = Structure.detect()
 
 plt_show((Structure.img, "Original"), (Structure.Finalimg, "Final"), (finalresult, "Mask"))
+
+OCR1, OCR2 = Structure.OCR_Op()
+
+plt_show((Structure.img, "Original"), (OCR1, "Final after OCR"), (OCR2, "Mask after OCR"))
 
