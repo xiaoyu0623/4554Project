@@ -1,10 +1,12 @@
 import os
 import cv2
+import csv
 import numpy as np
 from scipy.stats import mode, norm
 from PIL import Image
 import matplotlib.pyplot as plt
-from pytesseract import image_to_string, image_to_boxes
+import pytesseract
+from pytesseract import image_to_string, image_to_boxes, Output
 
 class Reg_Calculation(object):
 
@@ -103,6 +105,7 @@ class TextDetection(object):
         self.K                              = K
         self.Repeat_Time                    = Repeat_Time
         self.Gain                           = Gain
+        self.textOut                        = []
 
         self.Finalimg                       = color_img.copy()
 
@@ -358,8 +361,36 @@ class TextDetection(object):
             box                     = np.int0(box)
             cv2.drawContours(self.Finalimg, [box], 0, (0, 255, 0), 2)
             cv2.drawContours(finalresult, [box], 0, 255, -1)
+            self.textOut.append(self.text(box, i))
+        # Reverse the order
+        self.textOut = self.textOut[::-1]
 
+            
         return finalresult
+
+    def text(self, box, i):
+        width = int(np.sqrt((pow(box[0,0]-box[1,0],2)) + (pow(box[0,1]-box[1,1],2))))
+        height = int(np.sqrt((pow(box[1,0]-box[2,0],2)) + (pow(box[1,1]-box[2,1],2))))
+        points = np.float32([[0,0],[width-1,0],[0,height-1],[width-1,height-1]])
+        boxpoints = np.float32([box[2], box[3], box[1], box[0]])
+
+        #Affine Transformation
+        M = cv2.getPerspectiveTransform(boxpoints, points)
+        txt = cv2.warpPerspective(self.grayscale,M,(width,height))
+
+        # Binary Threshold image
+        txt = cv2.threshold(txt, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+
+        # Using tesseract OCR image engine
+        Tconfig = r'--oem 3 --psm 6'
+        resTxt = pytesseract.image_to_data(txt, output_type=Output.DICT, config = Tconfig, lang = 'eng')
+        words = []
+        for word in resTxt['text']:
+            if word != '': words.append(word)
+        return words
+
+
+
 
 def plt_show(*inputimages):
 
@@ -383,6 +414,7 @@ def plt_show(*inputimages):
 
     plt.show()
 
+    
 
 inputfile       = "T4.jpg"
 
@@ -391,6 +423,10 @@ Structure       = TextDetection(inputfile)
 finalresult     = Structure.detect()
 
 plt_show((Structure.img, "Original"), (Structure.Finalimg, "Final Image"), (finalresult, "Mask For Transformation"))
+
+TextOut = open("result_text.txt", "w", encoding = "UTF-8-sig")
+for word in Structure.textOut:
+    TextOut.write((" ".join(word) + "\n"))
 
 #---------------------------------------------------------------------------------------------------------------
 
