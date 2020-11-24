@@ -364,15 +364,15 @@ class TextDetection(object):
             self.textOut.append(self.text(box, i))
         # Reverse the order
         self.textOut = self.textOut[::-1]
-
-            
         return finalresult
 
+
     def text(self, box, i):
-        width = int(np.sqrt((pow(box[0,0]-box[1,0],2)) + (pow(box[0,1]-box[1,1],2))))
-        height = int(np.sqrt((pow(box[1,0]-box[2,0],2)) + (pow(box[1,1]-box[2,1],2))))
+        boxpoints = self.findCornerOrder(box)
+        width = int(np.sqrt((pow(boxpoints[0,0]-boxpoints[1,0],2)) + (pow(boxpoints[0,1]-boxpoints[1,1],2))))
+        height = int(np.sqrt((pow(boxpoints[0,0]-boxpoints[2,0],2)) + (pow(boxpoints[0,1]-boxpoints[2,1],2))))
         points = np.float32([[0,0],[width-1,0],[0,height-1],[width-1,height-1]])
-        boxpoints = np.float32([box[2], box[3], box[1], box[0]])
+
 
         #Affine Transformation
         M = cv2.getPerspectiveTransform(boxpoints, points)
@@ -389,6 +389,14 @@ class TextDetection(object):
             if word != '': words.append(word)
         return words
 
+    def findCornerOrder(self, box):
+        box = np.float32([box[0], box[1], box[2], box[3]])
+        box = sorted(box, key = (lambda x:x[0]))
+        left = np.float32([box[0], box[1]])
+        right = np.float32([box[2], box[3]])
+        left = sorted(left, key = (lambda x:x[1]))
+        right = sorted(right, key = (lambda x:x[1]))
+        return np.float32([left[0], right[0], left[1], right[1]])
 
 
 
@@ -416,7 +424,7 @@ def plt_show(*inputimages):
 
     
 
-inputfile       = "T4.jpg"
+inputfile       = "T7.jpg"
 
 Structure       = TextDetection(inputfile)
 
